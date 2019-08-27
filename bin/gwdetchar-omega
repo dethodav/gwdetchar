@@ -110,6 +110,19 @@ if not args.disable_correlation:
         args.disable_correlation = True
 cp.remove_section('primary')
 
+# parse waveform to overlay
+try:
+    from gwpy.timeseries import TimeSeries
+    waveform_path = cp.get('waveform','path') 
+    track_times,track_freq = numpy.loadtxt(waveform_path, unpack=True,
+                                           dtype=float, ndmin=1)
+    track = TimeSeries(track_freq, times=track_times)
+except config.configparser.NoSectionError:
+    logger.warning(
+        'No waveform configured, continuing without overlaid waveform')
+    track = None
+cp.remove_section('waveform')
+
 # get contextual channel blocks
 blocks = cp.get_channel_blocks()
 
@@ -251,7 +264,8 @@ for block in blocks.values():
 
         logger.info(
             ' -- Plotting omega scan products for {}'.format(channel.name))
-        plot.write_qscan_plots(gps, channel, series, colormap=args.colormap)
+        plot.write_qscan_plots(gps, channel, series, colormap=args.colormap,
+                               track=track)
 
         if correlate is not None:
             logger.info(' -- Cross-correlating {}'.format(channel.name))
