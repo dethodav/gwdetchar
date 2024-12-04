@@ -33,5 +33,7 @@ from .core import (
     conditioner,
     primary,
     cross_correlate,
+    model,
+    extract_features,
     scan,
 )

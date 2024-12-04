@@ -20,6 +20,8 @@
 """
 
 from scipy.signal import butter
+from scipy.spatial.distance import cosine
+from numpy.random import rand
 
 from gwpy.segments import Segment
 from gwpy.signal.qtransform import q_scan
@@ -232,6 +234,26 @@ def cross_correlate(xoft, hoft):
     elif hoft.sample_rate.value > xoft.sample_rate.value:
         hoft = hoft.resample(xoft.sample_rate.value)
     out = xoft.correlate(hoft, window='hann')
+    return out
+
+def extract_features(spectro, ml_model=None):
+    print('THIS IS THE ML MODEL', ml_model) #FIXME
+    # REPLACE THIS WITH THE GSPY FEATURE EXTRACTION
+    features = rand(5)
+    return features
+
+def model(spectro, hoft_features):
+    print('THIS IS THE HOFT FEATURES', hoft_features) #FIXME
+    if hoft_features:
+        ml_model = hoft_features[0]
+        hoft_features = hoft_features[1]
+    else:
+        ml_model = None
+        hoft_features = []
+    xoft_features = extract_features(spectro, ml_model)
+    #xoft = rand(4)
+    out = cosine(xoft_features, hoft_features) 
+    print('THIS SHOULD BE CORR OUT', out) #FIXME
     return out
 
 

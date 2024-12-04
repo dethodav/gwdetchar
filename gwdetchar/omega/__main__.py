@@ -120,7 +120,8 @@ def _parse_configuration(inifiles, ifo=None, gps=None):
 
 
 def _scan_channel(channel, data, analyzed, gps, block, fthresh,
-                  logf, fscale, colormap, block_name, correlate=None):
+                  logf, fscale, colormap, block_name, correlate=None,
+                  model=None):
     """Perform Omega scan on an individual data channel
     """
     try:  # scan the channel
@@ -149,7 +150,13 @@ def _scan_channel(channel, data, analyzed, gps, block, fthresh,
         LOGGER.info(' -- Cross-correlating {}'.format(channel.name))
         correlation = omega.cross_correlate(series[2], correlate)
         channel.save_loudest_tile_features(
-            series[3], correlation, gps=gps, dt=block.dt)
+            series[3], correlate=correlation, gps=gps, dt=block.dt)
+    elif model is not None:
+        LOGGER.info(' -- Modeling {}'.format(channel.name))
+        print('THIS SHOULD BE THE AUX SPECTRO', series[5]) #FIXME
+        modeling = omega.model(series[5], model)
+        channel.save_loudest_tile_features(
+            series[3], model=modeling, gps=gps, dt=block.dt)
     else:
         channel.save_loudest_tile_features(series[3])
     # update the record of analyzed channels
@@ -197,6 +204,14 @@ def create_parser():
     parser.add_argument(
         '-d',
         '--disable-correlation',
+        action='store_true',
+        default=False,
+        help='disable cross-correlation of aux '
+             'channels, default: False',
+    )
+    parser.add_argument(
+        '-m',
+        '--model',
         action='store_true',
         default=False,
         help='disable cross-correlation of aux '
@@ -269,7 +284,7 @@ def main(args=None):
     cp.read(args.config_file)
 
     # parse primary channel
-    if not args.disable_correlation:
+    if not args.disable_correlation or args.model:
         try:
             primary = config.OmegaChannelList(
                 'primary', **dict(cp.items('primary')))
@@ -277,6 +292,7 @@ def main(args=None):
             LOGGER.warning('No primary configured, continuing '
                            'without cross-correlation')
             args.disable_correlation = True
+            args.model = True
     cp.remove_section('primary')
 
     # get contextual channel blocks
@@ -315,7 +331,7 @@ def main(args=None):
     (record, completed) = _load_channel_record(
         summary,
         use_checkpoint=(not args.disable_checkpoint),
-        correlate=(not args.disable_correlation),
+        correlate=(not args.disable_correlation or args.model),
     )
 
     # set up html output
@@ -349,8 +365,30 @@ def main(args=None):
         # prepare HTML output
         htmlv['correlated'] = True
         htmlv['primary'] = name
+    elif args.model:
+        LOGGER.debug('Processing primary channel')
+        duration = primary.duration
+        fftlength = primary.fftlength
+        name = primary.channel.name
+        start = gps - duration/2. - 1
+        end = gps + duration/2. + 1
+        primary_spectro = get_data(
+            name, start, end, frametype=primary.frametype,
+            source=primary.source, nproc=args.nproc,
+            verbose='Reading primary:'.rjust(30))
+        primary_spectro = omega.scan(
+            gps, primary.channel, primary_spectro.astype('float64'), 
+            fftlength, resample=primary.resample)[5]
+        print('THIS IS THE PRIMARY SPECTROGRAM', primary_spectro) #FIXME
+        model = primary.ml_model
+        hoft_features = omega.extract_features(primary_spectro, model)
+        model = [model, hoft_features]
+        htmlv['modeled'] = True
+        htmlv['primary'] = name
+        correlate = None
     else:
         correlate = None
+        model = None
 
     # range over channel blocks
     for block in blocks.values():
@@ -393,7 +431,7 @@ def main(args=None):
                 channel, data[channel.name], analyzed, gps, block,
                 args.far_threshold, (args.frequency_scaling == 'log'),
                 args.frequency_scaling, args.colormap,
-                blocks[channel.section].name, correlate)
+                blocks[channel.section].name, correlate, model)
             htmlv['toc'] = analyzed
             html.write_qscan_page(ifo, gps, analyzed, **htmlv)
 

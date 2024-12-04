@@ -121,6 +121,7 @@ def wrap_html(func):
         refresh = kwargs.pop('refresh', False)
         # determine primary channel
         correlated = kwargs.pop('correlated', False)
+        modeled = kwargs.pop('modeled', False)
         primary = kwargs.pop('primary', '%s:GDS-CALIB_STRAIN' % ifo)
         # write about page
         try:
@@ -146,8 +147,8 @@ def wrap_html(func):
         # (but only on the main results page)
         if about:
             page.add(write_summary(ifo, gpstime, incomplete=refresh))
-            write_summary_table(toc, correlated)
-            if correlated:
+            write_summary_table(toc, correlated=(correlated or modeled))
+            if correlated or modeled:
                 page.add(write_ranking(toc, primary))
             kwargs['context'] = ifo.lower()
         # write content
@@ -372,7 +373,7 @@ def write_ranking(toc, primary, thresh=6.5,
     if not numpy.array_equiv(ind_sorted[0], pind):
         # prepend the primary channel
         dind = numpy.nonzero(ind_sorted == pind)
-        ind_sorted = numpy.delete(ind_sorted, dind)
+        ind_sorted = numpy.delete(ind_sorted, dind[1])
         ind_sorted = numpy.insert(ind_sorted, 0, pind)
 
     # construct HTML table

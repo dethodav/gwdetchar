@@ -293,10 +293,21 @@ class OmegaChannel(Channel):
                              'eventgram_autoscaled']:
                 self.plots[plottype] = [get_fancyplots(self.name, plottype, t)
                                         for t in self.pranges]
+        else:
+            self.qrange = tuple(
+                [float(s) for s in params.get('q-range', "0").split(',')])
+            self.frange = tuple(
+                [float(s) for s in params.get('frequency-range', ")").split(',')])
+            self.mismatch = float(params.get('max-mismatch', 0.2))
+            self.snrthresh = float(params.get('snr-threshold', 5.5))
+            self.always_plot = ast.literal_eval(
+                params.get('always-plot', 'True'))
+            self.pranges = [int(t) for t in params.get('plot-time-durations',
+                                                       None).split(',')]
         self.section = section
         self.params = params.copy()
 
-    def save_loudest_tile_features(self, qgram, correlate=None, gps=0, dt=0.1):
+    def save_loudest_tile_features(self, qgram, correlate=None, model=None, gps=0, dt=0.1):
         """Store properties of the loudest time-frequency tile
 
         Parameters
@@ -341,6 +352,10 @@ class OmegaChannel(Channel):
             self.stdev = stdev  # used to reject high glitch rates
             delay = (corr.t0 + corr.argmax() * corr.dt).value - gps
             self.delay = int(delay * 1000)  # convert to ms
+        elif model is not None:
+            self.corr = numpy.around(model,3)
+            self.stdev = 0
+            self.delay = 0
 
     def load_loudest_tile_features(self, table, correlated=False):
         """Load properties of the loudest time-frequency tile from a table
@@ -399,10 +414,11 @@ class OmegaChannelList(object):
         self.frametype = params.get('frametype', None)
         section = self.parent if self.parent else self.key
         if key == 'primary':
-            self.length = float(params.get('matched-filter-length'))
+            self.length = float(params.get('matched-filter-length', 1))
             self.flow = float(params.get('f-low', 4))
             channelname = params.get('channel').strip()
             self.channel = OmegaChannel(channelname, section, **params)
+            self.ml_model = params.get('ml-model', None)
         else:
             self.flag = params.get('state-flag', None)
             self.search = float(params.get('search', 0.5))
