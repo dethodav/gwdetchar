@@ -418,7 +418,8 @@ def main(args=None):
             if channel.name in completed:  # load checkpoint
                 analyzed = _load_channel_from_checkpoint(
                     blocks[channel.section].name, channel, analyzed,
-                    completed, record, (correlate is not None))
+                    completed, record, 
+                    (correlate is not None or model is not None))
                 htmlv['toc'] = analyzed
                 html.write_qscan_page(ifo, gps, analyzed, **htmlv)
                 continue

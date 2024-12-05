@@ -388,7 +388,8 @@ def write_ranking(toc, primary, thresh=6.5,
         'target': '_blank',
     }
     tlink = markup.oneliner.a(primary, href='plots/primary.png', **aparams)
-    page.p('Below are the top 5 channels ranked by matched-filter correlation '
+    page.p('Below are the top 5 channels ranked by matched-filter '
+           'or machine-leanring correlation '
            'within 100 ms of %s.' % tlink)
     # range over channels
     k = 0
