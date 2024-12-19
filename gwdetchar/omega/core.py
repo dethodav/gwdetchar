@@ -37,7 +37,6 @@ from gravityspy.ml import labelling_test_glitches as label_glitches
 ml_model = './similarity-model-O3.h5'
 
 
-
 __author__ = 'Alex Urban <alexander.urban@ligo.org>'
 __credits__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
@@ -258,7 +257,7 @@ def raw_read_rgb(spectro, scale, resolution=0.3):
         spectrogram spectrogram spectrogram 
 
     scale : `float`
-        Spectrogram length (in seconds) for image extraction
+        spectrogram length (in seconds) for image extraction
 
     resolution : `float`, optional
         resolution of image 
@@ -287,7 +286,6 @@ def raw_read_rgb(spectro, scale, resolution=0.3):
     # Extracting rgb values
     image_rgba = np.array(fig.canvas.renderer.buffer_rgba())
     image_rgb = image_rgba[:, :, :3]
-
     crop_rgb = image_rgb[1:-1, 1:-1]
 
     # Separating by color
@@ -302,8 +300,6 @@ def raw_read_rgb(spectro, scale, resolution=0.3):
     image_data_b = crop_rgb.copy()
     image_data_b[:, :, 0] = 0
     image_data_b[:, :, 1] = 0
-    
-    
     return image_data_r, image_data_g, image_data_b
 
 
@@ -325,7 +321,6 @@ def extract_features(spectro, ml_model=None):
     image_data_for_si = pd.DataFrame()
 
     list_of_scales = [0.5, 1.0, 2.0, 4.0]
-    path_to_semantic_model = ml_model
 
     for scale in list_of_scales:  
     
@@ -337,11 +332,10 @@ def extract_features(spectro, ml_model=None):
         image_data_for_si['{}.png'.format(scale)] = [stacked_rgb]
     
     features = label_glitches.get_multiview_feature_space(image_data=image_data_for_si,
-                                       semantic_model_name='{0}'.format(path_to_semantic_model),
+                                       semantic_model_name='{0}'.format(ml_model),
                                        image_size=[140, 170], 
                                        verbose=True,
                                        order_of_channels='channels_last')
-        
     return features[0]
 
 def model(spectro, hoft_features):
@@ -353,7 +347,6 @@ def model(spectro, hoft_features):
         ml_model = None
         hoft_features = []
     xoft_features = extract_features(spectro, ml_model)
-    #xoft = rand(4)
     out = cosine(xoft_features, hoft_features) 
     print('THIS SHOULD BE CORR OUT', out) #FIXME
     return out
