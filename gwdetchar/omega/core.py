@@ -26,6 +26,18 @@ from numpy.random import rand
 from gwpy.segments import Segment
 from gwpy.signal.qtransform import q_scan
 
+
+
+from gwpy.timeseries import TimeSeries
+from matplotlib import pyplot as plt
+import numpy as np 
+import pandas as pd
+from gravityspy.ml import labelling_test_glitches as label_glitches
+
+ml_model = './similarity-model-O3.h5'
+
+
+
 __author__ = 'Alex Urban <alexander.urban@ligo.org>'
 __credits__ = 'Duncan Macleod <duncan.macleod@ligo.org>'
 
@@ -236,11 +248,101 @@ def cross_correlate(xoft, hoft):
     out = xoft.correlate(hoft, window='hann')
     return out
 
+
+def raw_read_rgb(spectro, scale, resolution=0.3):
+    """ Extract pixel rgb values into arrays 
+
+    Parameters
+    ----------
+    spectro : `gwpy.spectrogram.spectrogram.Spectrogram`
+        spectrogram spectrogram spectrogram 
+
+    scale : `float`
+        Spectrogram length (in seconds) for image extraction
+
+    resolution : `float`, optional
+        resolution of image 
+
+    Returns
+    -------
+    image_data_r, image_data_g, image_data_b: `tuple`
+        Arrays of red, green, and blue values of image
+    """
+    # Setting up according to how GravitySpy wants it
+    fig = plt.figure(figsize=[1.72, 1.42], dpi=100)
+    ax = fig.gca()
+    pcm = ax.imshow(spectro, vmin=0,vmax=25)
+
+    gps = np.average(spectro.span)
+
+    ax.set_xlim(gps-(scale/2), gps+(scale/2))
+    ax.axis('off')
+    ax.set_yscale('log')
+    ax.grid(False)
+    plt.tight_layout(pad=0)
+
+    # Preparing fig for image data extraction
+    fig.canvas.draw()
+
+    # Extracting rgb values
+    image_rgba = np.array(fig.canvas.renderer.buffer_rgba())
+    image_rgb = image_rgba[:, :, :3]
+
+    crop_rgb = image_rgb[1:-1, 1:-1]
+
+    # Separating by color
+    image_data_r = crop_rgb.copy()  
+    image_data_r[:, :, 1] = 0
+    image_data_r[:, :, 2] = 0
+
+    image_data_g = crop_rgb.copy()
+    image_data_g[:, :, 0] = 0
+    image_data_g[:, :, 2] = 0
+
+    image_data_b = crop_rgb.copy()
+    image_data_b[:, :, 0] = 0
+    image_data_b[:, :, 1] = 0
+    
+    
+    return image_data_r, image_data_g, image_data_b
+
+
 def extract_features(spectro, ml_model=None):
-    print('THIS IS THE ML MODEL', ml_model) #FIXME
-    # REPLACE THIS WITH THE GSPY FEATURE EXTRACTION
-    features = rand(5)
-    return features
+    """ Extract similarity features from rgb values
+
+    Parameters
+    ----------
+    spectro : `gwpy.spectrogram.spectrogram.Spectrogram`
+        spectrogram spectrogram spectrogram 
+
+    Returns
+    -------
+    features: `giant table`
+        Similarity features from image 
+    """
+    print('THIS IS THE ML MODEL', ml_model) 
+
+    image_data_for_si = pd.DataFrame()
+
+    list_of_scales = [0.5, 1.0, 2.0, 4.0]
+    path_to_semantic_model = ml_model
+
+    for scale in list_of_scales:  
+    
+        image_data_r, image_data_g, image_data_b = raw_read_rgb(spectro, scale, resolution=0.3)
+
+        stacked_rgb = np.dstack([image_data_r[..., 0], image_data_g[..., 1], image_data_b[..., 2]])
+
+        # store in df
+        image_data_for_si['{}.png'.format(scale)] = [stacked_rgb]
+    
+    features = label_glitches.get_multiview_feature_space(image_data=image_data_for_si,
+                                       semantic_model_name='{0}'.format(path_to_semantic_model),
+                                       image_size=[140, 170], 
+                                       verbose=True,
+                                       order_of_channels='channels_last')
+        
+    return features[0]
 
 def model(spectro, hoft_features):
     print('THIS IS THE HOFT FEATURES', hoft_features) #FIXME
