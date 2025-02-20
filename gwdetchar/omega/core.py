@@ -347,8 +347,8 @@ def model(spectro, hoft_features):
         ml_model = None
         hoft_features = []
     xoft_features = extract_features(spectro, ml_model)
-    out = cosine(xoft_features, hoft_features) 
-    print('THIS SHOULD BE CORR OUT', out) #FIXME
+    out = 1 - cosine(xoft_features, hoft_features) 
+    print('THIS SHOULD BE CORR OUT (changed to 1-cos()):', out) #FIXME
     return out
 
 
